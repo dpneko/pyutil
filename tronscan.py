@@ -13,6 +13,10 @@ def filter_contract(transaction, contract):
     return contract == transaction['toAddress'] and 'data' in transaction['contractData']
 
 
+def filter_from(transaction, from_addr):
+    return transaction['ownAddress'] == from_addr
+
+
 def get_all_transactions_by_contract(contract, f_filter=None, f_map=map):
     url = 'https://apiasia.tronscan.io:5566/api/contracts/transaction'
     limit=50
