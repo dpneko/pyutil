@@ -1,4 +1,6 @@
 import json
+from path import Path
+import pandas as pd
 
 
 def get_next_assign_frozen_reward(assign_json, week = 4):
@@ -19,3 +21,16 @@ def get_new_farmed(assign_json):
         if round(float(d['l']) / float(d['s'])) == 23:
             return int(d['s'])*24
     return 0
+
+
+def get_prod_reward(dir):
+    prodReward = Path(dir)
+    dfs = []
+    for file in filter(lambda f: f.basename().startswith('alltoken'), prodReward.files()):
+        dfs.append(pd.read_csv(file, sep='\t', names=['symbol', 'address', 'type', 'farm_token_type', 'actual_reward', 'theory_reward', 'sub'], index_col=False))
+    alltoken = pd.concat(dfs).reset_index(drop=True)
+    alltoken['actual_reward'] = alltoken['actual_reward'].str.replace('actual_reward: ', '').astype('float64')
+    alltoken['theory_reward'] = alltoken['theory_reward'].str.replace('theory_reward: ', '').astype('float64')
+    alltoken['sub'] = alltoken['sub'].str.replace('sub: ', '').astype('float64')
+    alltoken['percent'] = (alltoken['sub'] / (alltoken['theory_reward'] ) * 100).astype(str) + '%'
+    return alltoken
