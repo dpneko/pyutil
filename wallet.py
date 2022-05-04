@@ -3,6 +3,9 @@ import requests
 from base58 import Base58
 import SolTypeConvert
 
+nile = 'https://api.nileex.io'
+trongrid = 'https://api.trongrid.io'
+
 
 def gettransactioninfobyid(transaction_id):
     return requests.get("https://api.trongrid.io/wallet/gettransactioninfobyid?value="+transaction_id).json()
