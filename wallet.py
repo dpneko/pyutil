@@ -11,7 +11,7 @@ def gettransactioninfobyid(transaction_id):
     return requests.get("https://api.trongrid.io/wallet/gettransactioninfobyid?value="+transaction_id).json()
     
 
-def triggerconstantcontract(contract_address:str, function_selector:str, parameter:str)->str:
+def triggerconstantcontract(contract_address:str, function_selector:str, parameter:str, host="mainnet")->str:
     contract_address = Base58(contract_address).decodeWithPrefix()
     params = {
         "contract_address":contract_address,
@@ -31,7 +31,7 @@ def triggerconstantcontract(contract_address:str, function_selector:str, paramet
 def balanceOf(token, user):
     # 参数是base58check encode
     user = Base58(user).decodeWithPrefix()
-    ret = triggerconstantcontract(token, user, "balanceOf(address)", "0000000000000000000000"+user)
+    ret = triggerconstantcontract(token, "balanceOf(address)", "0000000000000000000000"+user)
     return int(ret, base=16)
 
 
@@ -51,3 +51,7 @@ def locked(user, vesun):
     end = SolTypeConvert.getInt(rst, 1)
     return user, amount, end
 
+
+def decimals(token):
+    ret = triggerconstantcontract(token, "decimals()", "")
+    return int(ret, base=16)
