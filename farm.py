@@ -47,17 +47,6 @@ def cal_fix_apy_reward(apys, balances):
     a |000|-------|-----|
     b |0|---|---|----------|----
     """
-    # apys_balances_periods = [] # [[block, apy, balance]]
-    # apys.insert(0, [0, 0])
-    # balances.insert(0, [0, 0])
-    # for _ in range(0, len(apys)+len(balances)):
-    #     i, j = 1, 1
-    #     if apys[i][0] >= balances[j][0]:
-    #         apys_balances_periods.append([balances[j][0], apys[i-1][1], balances[j][1]])
-    #         j += 1
-    #     else:
-    #         apys_balances_periods.append([apys[i][0], apys[i][1], balances[j][1]])
-    #         i += 1
     sum_reward = 0
     for start_block, end_block, apy in apys:
         if balances[-1][0] < end_block:
@@ -139,7 +128,14 @@ if __name__ == '__main__':
     cores = pathos.multiprocessing.cpu_count()
     pool = pathos.pools.ProcessPool(cores)
 
-    balances = get_token_balances("TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", "TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", f_map=pool.imap)
-    # print(balances)
-    apys = [[40601316, 40631281, 0.3]]
+    balances = get_token_balances("TGanUa7K5JwQEouHiA5aTxfuAwsZKdhfdS", "TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", f_map=pool.imap)
+    print(balances)
+    apys = [[40601316, 40630084, 0.3]]
     print(f"usdd reward: {cal_fix_apy_reward(apys, balances)/1e10}")
+    for i in range(len(balances)):
+        if balances[i][0] >= 40630084:
+            print(f"最后的balance: {balances[i-1][1]}")
+            break
+    if balances[-1][0] < 40630084:
+        print(f"最后的balance: {balances[-1][1]}")
+    
