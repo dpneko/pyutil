@@ -1,9 +1,11 @@
 import json
+import os
 from path import Path
 import pandas as pd
 import requests
 import tqdm
 import pathos
+from decimal import Decimal
 from trongrid import getBlockNumByTimeStamp
 
 
@@ -27,6 +29,14 @@ def get_new_farmed(assign_json):
     return 0
 
 
+def cal_detal_index(farm_speed, decimal, delta_block, total_balance):
+    speed = Decimal(str(farm_speed))*pow(10, decimal)//Decimal(3600 * 24 // 3)
+    if delta_block > 0:
+        accrued = speed * Decimal(delta_block)
+        return accrued * pow(10, 36) / Decimal(total_balance)
+    return Decimal(0)
+
+
 def get_prod_reward(dir):
     prodReward = Path(dir)
     dfs = []
@@ -38,6 +48,34 @@ def get_prod_reward(dir):
     alltoken['sub'] = alltoken['sub'].str.replace('sub: ', '').astype('float64')
     alltoken['percent'] = (alltoken['sub'] / (alltoken['theory_reward'] ) * 100).astype(str) + '%'
     return alltoken
+
+
+def cal_farm_index(speeds, total_balances, decimal):
+    """
+    speeds格式: [[start_block, end_block, speed]]
+    total_balances格式: [[block, total_balances]]  要求total_balances没有除精度
+    a |000|-------|-----|
+    b |0|---|---|----------|----
+    """
+    index = Decimal(0)
+    index_array = [[speeds[0][0], 0]]
+    for start_block, end_block, speed in speeds:
+        if total_balances[-1][0] < end_block:
+            total_balances.append([end_block, 0])
+        for i in range(len(total_balances)-1):
+            if total_balances[i][0] >= start_block and total_balances[i+1][0] <=  end_block:
+                delta_block = total_balances[i+1][0] - total_balances[i][0]
+            elif total_balances[i][0] <= start_block and total_balances[i+1][0] >=  end_block:
+                delta_block = end_block - start_block
+            elif total_balances[i][0] <= start_block and total_balances[i+1][0] >= start_block:
+                delta_block = total_balances[i+1][0] - start_block
+            elif total_balances[i][0] <= end_block and total_balances[i+1][0] >= end_block:
+                delta_block = end_block - total_balances[i][0]
+            else:
+                continue
+            index += cal_detal_index(speed, decimal, delta_block, total_balances[i][1])
+            index_array.append([total_balances[i+1][0], index])
+    return index, index_array
 
 
 def cal_fix_apy_reward(apys, balances):
@@ -66,7 +104,10 @@ def cal_fix_apy_reward(apys, balances):
     return sum_reward
 
 
-def get_token_transfers(token, startTime="", endTime="", f_map=map):
+def get_token_all_transfers(token, startTime="", endTime="", f_map=map):
+    if os.path.exists(f"get_token_all_transfers_{token}.json"):
+        with open(f"get_token_all_transfers_{token}.json", "r") as f:
+            return json.load(f)
     url = 'https://apilist.tronscan.org/api/token_trc20/transfers'
     limit=20
     start=0
@@ -83,10 +124,15 @@ def get_token_transfers(token, startTime="", endTime="", f_map=map):
     for ret in tqdm.tqdm(f_map(func, range(2, total_page+1)), total=total_page-1):
         token_transfers.extend(ret)
     token_transfers = sorted(token_transfers, key=lambda transfer: transfer['block'])
+    with open(f"get_token_all_transfers_{token}.json", "w") as f:
+        json.dump(token_transfers, f, indent=2)
     return token_transfers
 
 
 def get_token_transfers(address, token, f_map=map):
+    if os.path.exists(f"get_token_transfers_{token}_{address}.json"):
+        with open(f"get_token_transfers_{token}_{address}.json", "r") as f:
+            return json.load(f)
     url = "https://apilist.tronscan.org/api/token_trc20/transfers"
     limit=20
     start=0
@@ -102,14 +148,19 @@ def get_token_transfers(address, token, f_map=map):
     for ret in tqdm.tqdm(f_map(func, range(2, total_page+1)), total=total_page-1):
         token_transfers.extend(ret)
     token_transfers = sorted(token_transfers, key=lambda transfer: transfer['block'])
+    with open(f"get_token_transfers_{token}_{address}.json", "w") as f:
+        json.dump(token_transfers, f, indent=2)
     return token_transfers
 
 
-def get_token_balances(address, token, f_map=map):
+def get_token_balances(address, token, startTime=None, endTime=None, f_map=map):
     """
     返回的balances格式: [[block, balance]]
     """
-    token_transfers = get_token_transfers(address, token, f_map)
+    if address == token:
+        token_transfers = get_token_all_transfers(token, endTime=endTime, f_map=f_map)
+    else:
+        token_transfers = get_token_transfers(address, token, f_map)
     balances = [[0, 0]]
     for transfer in token_transfers:
         if transfer['from_address'] == address:
@@ -120,22 +171,50 @@ def get_token_balances(address, token, f_map=map):
             continue
         if address == token: # 此时balance表示total supply
             delta_balance = -delta_balance
-        balances.append([transfer['block'], balances[-1][1] + delta_balance])
+        if startTime is not None and transfer['block_ts'] <= startTime:
+            balances[0] = [transfer['block'], balances[-1][1] + delta_balance]
+        else:
+            balances.append([transfer['block'], balances[-1][1] + delta_balance])
+        if endTime is not None and transfer['block_ts'] >= endTime:
+            break
     return balances
 
 
-if __name__ == '__main__':
+def get_fix_apy_reward():
     cores = pathos.multiprocessing.cpu_count()
     pool = pathos.pools.ProcessPool(cores)
 
-    balances = get_token_balances("TGanUa7K5JwQEouHiA5aTxfuAwsZKdhfdS", "TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", f_map=pool.imap)
+    balances = get_token_balances("TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", "TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", f_map=pool.imap)
     print(balances)
-    apys = [[40601316, 40630084, 0.3]]
+    apys = [[40601316, 40802667, 0.3]]
     print(f"usdd reward: {cal_fix_apy_reward(apys, balances)/1e10}")
     for i in range(len(balances)):
-        if balances[i][0] >= 40630084:
+        if balances[i][0] >= apys[-1][1]:
             print(f"最后的balance: {balances[i-1][1]}")
             break
-    if balances[-1][0] < 40630084:
+    if balances[-1][0] < apys[-1][1]:
         print(f"最后的balance: {balances[-1][1]}")
+
+
+def get_deposit_index():
+    cores = pathos.multiprocessing.cpu_count()
+    pool = pathos.pools.ProcessPool(cores)
+
+    balances = get_token_balances("TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", "TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS", startTime=1652356800000, endTime=1652961600000, f_map=pool.imap)
+    print(f"balances:\n{balances[:5]}\n{balances[-5:]}")
+    speeds = [[40601316, 40802667, 206643]]
+    # speeds = [[40630084, 40745118, 100000], [40745118, 40802667, 80000]]
+    for i in range(len(balances)):
+        if balances[i][0] >= speeds[-1][1]:
+            print(f"最后的balance: {balances[i-1][1]}")
+            break
+    if balances[-1][0] < speeds[-1][1]:
+        print(f"最后的balance: {balances[-1][1]}")
+    index, index_array = cal_farm_index(speeds, balances, 18)
+    print(f"usdd挖jst 最后index: {index}")
+    print(f"index:\n{index_array[:5]}\n{index_array[-5:]}")
+
+
+if __name__ == '__main__':
+    get_deposit_index()
     
