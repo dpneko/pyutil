@@ -7,11 +7,19 @@ nile = 'https://api.nileex.io'
 trongrid = 'https://api.trongrid.io'
 
 
-def gettransactioninfobyid(transaction_id):
-    return requests.get("https://api.trongrid.io/wallet/gettransactioninfobyid?value="+transaction_id).json()
+def gettransactioninfobyid(transaction_id, host="mainnet"):
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
+    return requests.get(domain + "/wallet/gettransactioninfobyid?value="+transaction_id).json()
     
 
-def triggerconstantcontract(contract_address:str, function_selector:str, parameter:str, host="mainnet")->str:
+def triggerconstantcontract(contract_address:str, function_selector:str, parameter:str="", host="mainnet")->str:
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
     contract_address = Base58(contract_address).decodeWithPrefix()
     params = {
         "contract_address":contract_address,
@@ -19,7 +27,7 @@ def triggerconstantcontract(contract_address:str, function_selector:str, paramet
         "function_selector":function_selector,
         "parameter":parameter
         }
-    ret = requests.post(url = "https://api.trongrid.io/wallet/triggerconstantcontract", json=params, headers={"Content-Type":"application/json"}).json()
+    ret = requests.post(url = domain + "/wallet/triggerconstantcontract", json=params, headers={"Content-Type":"application/json"}).json()
     if "constant_result" in ret and len(ret["constant_result"][0]) != 0:
         return ret["constant_result"][0]
     else:
@@ -55,3 +63,9 @@ def locked(user, vesun):
 def decimals(token):
     ret = triggerconstantcontract(token, "decimals()", "")
     return int(ret, base=16)
+
+
+if __name__ == '__main__':
+    ret = triggerconstantcontract("TJUCStq3WqfKqZLuZje5v7z6Ua6iBry1P6", "borrowCaps(address)", SolTypeConvert.address_to_bytes32("TPovsintcLMh9udvXgt45jvb1RYQ86imnL"), "nile")
+    print(ret)
+    print(Base58(ret).encode())
