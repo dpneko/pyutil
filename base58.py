@@ -53,7 +53,7 @@ class Base58(object):
                 self._hex = data[2:]
                 self._prefix = 0xa0
             else:
-                self._hex = data
+                self._hex = data[-40:]
         elif isinstance(data, str):  # if is base58 string
             if data[0] == "T":
                 self._hex = base58CheckDecode(data)
