@@ -37,6 +37,12 @@ def cal_detal_index(farm_speed, decimal, delta_block, total_balance):
     return Decimal(0)
 
 
+def cal_fix_apy_index(apy, decimal, delta_block):
+    speed = Decimal(str(apy))*pow(10, decimal+36)/Decimal(3600 * 24 * 365// 3)
+    if delta_block > 0:
+        return speed * Decimal(delta_block) / pow(10, 10)
+    return Decimal(0)
+
 def get_prod_reward(dir):
     prodReward = Path(dir)
     dfs = []
