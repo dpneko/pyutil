@@ -215,6 +215,11 @@ def get_deposit_index():
     print(f"index:\n{index_array[:5]}\n{index_array[-5:]}")
 
 
+def cal_predict_total_reward(speed, start_block, end_block):
+    return speed / (86400//3) * (end_block - start_block)
+
+
 if __name__ == '__main__':
-    get_deposit_index()
+    print(sum([cal_predict_total_reward(a,b,c) for a,b,c in [(50000, 41809095, 41921204),(90000, 41921204, 42007106)]]))
+    print(463077430555555555542471/1e18)
     
