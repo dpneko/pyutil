@@ -66,6 +66,4 @@ def decimals(token):
 
 
 if __name__ == '__main__':
-    ret = triggerconstantcontract("TJUCStq3WqfKqZLuZje5v7z6Ua6iBry1P6", "borrowCaps(address)", SolTypeConvert.address_to_bytes32("TPovsintcLMh9udvXgt45jvb1RYQ86imnL"), "nile")
-    print(ret)
-    print(Base58(ret).encode())
+    print(json.dumps(gettransactioninfobyid("ef676df0b0cf82b451183c7cb535f506306c5fff9a793f35763008c7c0e341bc")))

@@ -225,6 +225,16 @@ def cal_predict_total_reward(speed, start_block, end_block):
     return speed / (86400//3) * (end_block - start_block)
 
 
+def allaccounttoken(dir):
+    prodReward = Path(dir)
+    dfs = []
+    for file in filter(lambda f: f.basename().startswith('allaccounttoken'), prodReward.files()):
+        dfs.append(pd.read_csv(file, sep='\t', names=['symbol', 'address', 'type', 'farm_token_type', 'account', 'reward'], index_col=False))
+    allaccounttoken = pd.concat(dfs).reset_index(drop=True)
+    allaccounttoken['reward'] = allaccounttoken['reward'].astype('float64')
+    total = allaccounttoken.groupby(['account', 'farm_token_type']).sum('reward')
+    return total
+
 if __name__ == '__main__':
     print(sum([cal_predict_total_reward(a,b,c) for a,b,c in [(50000, 41809095, 41921204),(90000, 41921204, 42007106)]]))
     print(463077430555555555542471/1e18)
