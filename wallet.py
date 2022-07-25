@@ -36,6 +36,18 @@ def triggerconstantcontract(contract_address:str, function_selector:str, paramet
         return None
 
 
+def getcontractinfo(contract_address:str, host="mainnet"):
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
+    contract_address = Base58(contract_address).decodeWithPrefix()
+    params = {
+        "value": contract_address
+    }
+    return requests.post(domain + "/wallet/getcontractinfo", json=params, headers={"Content-Type":"application/json"}).json()
+
+
 def balanceOf(token, user):
     # 参数是base58check encode
     user = Base58(user).decodeWithPrefix()
@@ -66,4 +78,4 @@ def decimals(token):
 
 
 if __name__ == '__main__':
-    print(json.dumps(gettransactioninfobyid("ef676df0b0cf82b451183c7cb535f506306c5fff9a793f35763008c7c0e341bc")))
+    print(json.dumps(getcontractinfo("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")))

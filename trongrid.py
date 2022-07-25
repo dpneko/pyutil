@@ -107,3 +107,18 @@ def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None
             i += 1
         return block_range[i][0]
 
+
+def getEventsByContractAndEvent(contract:str, event_name:str):
+    events = []
+    url = f"https://api.trongrid.io/v1/contracts/{contract}/events?limit=200"
+    if event_name is not None:
+        url = url + f"&event_name={event_name}"
+    while True:
+        result = requests.get(url).json()
+        if 'data' in result:
+            events.extend(result['data'])
+        if 'meta' in result and 'links' in result['meta'] and 'next' in result['meta']['links']:
+            url = result['meta']['links']['next']
+        else:
+            break
+    return events
