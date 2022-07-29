@@ -3,19 +3,14 @@ import json
 import tqdm
 import pandas as pd
 
+import SolTypeConvert
 from trongrid import getEventsByContractAndEvent
 from base58 import Base58
 from wallet import triggerconstantcontract
 
 
 def export_fixed_mining(pool_address, fmap=map):
-    events = getEventsByContractAndEvent(pool_address, "SnapShot")
-    # with open(f"events_{pool_address}.json", "w") as f:
-    #     json.dump(events, f, indent=6)
-    users = [event['result']['user'] for event in events]
-    users = set(users)
-    users = [Base58(raw).encode() for raw in users]
-
+    users = get_users(pool_address)
     user_infos = {}
     def func(user:str, pool_address=pool_address):
         user_decode = Base58(user).decodeWithPrefix()
@@ -40,8 +35,8 @@ def export_fixed_mining(pool_address, fmap=map):
 
     for ret in tqdm.tqdm(fmap(func, users), total=len(users)):
         user_infos.update(ret)
-    # with open(f"user_infos_{pool_address}.json", "w") as f:
-    #     json.dump(user_infos, f, indent=6)
+    with open(f"user_infos_{pool_address}.json", "w") as f:
+        json.dump(user_infos, f, indent=6)
     
     df_user_infos = pd.DataFrame.from_dict(user_infos, orient='index')
 
@@ -55,11 +50,57 @@ def export_fixed_mining(pool_address, fmap=map):
     return df_user_infos
 
 
+def get_users(pool_address):
+    events = getEventsByContractAndEvent(pool_address, "SnapShot")
+    with open(f"events_{pool_address}.json", "w") as f:
+        json.dump(events, f, indent=6)
+    users = [event['result']['user'] for event in events]
+    users = set(users)
+    print(f"{pool_address}, total user number:{len(users)}")
+    users = [Base58(raw).encode() for raw in users]
+    return users
+
+
+def get_all_reward(pool_address):
+    df_user_infos = pd.read_csv(pool_address+".csv", index_col=0)
+    df_user_infos = df_user_infos.query("type == 'Flexible'")
+    print(f"{pool_address}, total Flexible user number:{df_user_infos.shape[0]}")
+
+
+def compare_flexible_fixed(pool_address):
+    pool_address = 'TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq'
+    df_user_infos = pd.read_csv(pool_address+".csv", index_col=0, dtype={'boostedBalance':'float64'})
+    stats = df_user_infos.groupby("type").sum()['boostedBalance']
+    print(f"{pool_address}:Flexible:Fixed={stats['Flexible']/stats['Fixed']*100}:100")
+
+
+def trigger_get_all(pool, users):
+    contract = ''
+    users_array = [SolTypeConvert.address_to_bytes32(user) for user in users]
+    params = [
+        SolTypeConvert.address_to_bytes32(pool),
+        '0000000000000000000000000000000000000000000000000000000000000040',
+        SolTypeConvert.SolTypeConvert.int_to_bytes32_str(len(users_array) * 32),
+        *users_array
+    ]
+
+    rst = triggerconstantcontract(
+        contract,
+        "getALL(address,address[])",
+        ''.join(params)
+    )
+    if rst is None or len(rst) < 64:
+        return None
+    
+    return rst
+
+
 if __name__ == '__main__':
     cores = pathos.multiprocessing.cpu_count()
     pool = pathos.pools.ProcessPool(cores)
 
-    # pool_address = "TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq" # 2pool
-    # pool_address = "TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu" # USDD-USDT Pool
-    _2pool = export_fixed_mining("TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq", pool.uimap)
-    usdd_usdt_pool = export_fixed_mining("TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu", pool.uimap)
+    _2pool = export_fixed_mining("TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq", pool.uimap) # 2pool
+    usdd_usdt_pool = export_fixed_mining("TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu", pool.uimap) # USDD-USDT Pool
+
+    get_all_reward("TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq")
+    get_all_reward("TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu")
