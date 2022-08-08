@@ -1,3 +1,5 @@
+from os import sep
+from posixpath import split
 import pathos
 import json
 import tqdm
@@ -95,12 +97,23 @@ def trigger_get_all(pool, users):
     return rst
 
 
+def read_sunio_fixed_pool_user_info():
+    df_user_infos = pd.read_csv("sunio_fixed_pool_user_info.csv", sep="\t").sort_values(by=['sub_pool', 'type', 'id'])
+    df_user_infos['lock_end_time'] = df_user_infos['lock_start_time'] + df_user_infos['lock_duration']
+    df_user_infos['lock_start_time_str'] = pd.to_datetime(df_user_infos['lock_start_time'], unit='s', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime('%Y-%m-%d %H:%M:%S')
+    df_user_infos['lock_end_time_str'] = pd.to_datetime(df_user_infos['lock_end_time'], unit='s', utc=True).dt.tz_convert('Asia/Shanghai').dt.strftime('%Y-%m-%d %H:%M:%S')
+    df_user_infos['lock_duration_day'] = df_user_infos['lock_duration'] // 86400
+    df_user_infos['type_str'] = df_user_infos['type'].replace({0:"Fixed", 1:"Flexible"})
+    return df_user_infos
+
 if __name__ == '__main__':
-    cores = pathos.multiprocessing.cpu_count()
-    pool = pathos.pools.ProcessPool(cores)
+    # cores = pathos.multiprocessing.cpu_count()
+    # pool = pathos.pools.ProcessPool(cores)
 
-    _2pool = export_fixed_mining("TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq", pool.uimap) # 2pool
-    usdd_usdt_pool = export_fixed_mining("TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu", pool.uimap) # USDD-USDT Pool
+    # _2pool = export_fixed_mining("TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq", pool.uimap) # 2pool
+    # usdd_usdt_pool = export_fixed_mining("TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu", pool.uimap) # USDD-USDT Pool
 
-    get_all_reward("TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq")
-    get_all_reward("TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu")
+    # get_all_reward("TMWFaKzrhhD7Zp9kY7Cd9iy8WRrA4UUEBq")
+    # get_all_reward("TEjGcD7Fb7KfEsJ2ouGCFUqqQqGjtvbmbu")
+
+    read_sunio_fixed_pool_user_info().to_csv("fixed_pool.csv", index=False)
