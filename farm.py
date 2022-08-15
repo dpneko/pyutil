@@ -43,7 +43,7 @@ def cal_fix_apy_index(apy, decimal, delta_block):
         return speed * Decimal(delta_block) / pow(10, 10)
     return Decimal(0)
 
-def get_prod_reward(dir):
+def alltoken(dir):
     prodReward = Path(dir)
     dfs = []
     for file in filter(lambda f: f.basename().startswith('alltoken'), prodReward.files()):
@@ -236,6 +236,6 @@ def allaccounttoken(dir):
     return total
 
 if __name__ == '__main__':
-    print(sum([cal_predict_total_reward(a,b,c) for a,b,c in [(50000, 41809095, 41921204),(90000, 41921204, 42007106)]]))
-    print(463077430555555555542471/1e18)
+    all_token = alltoken("/Users/xiang/Documents/suniov2/old_v2Reward_20220805/prodReward_0805")
+    print(all_token.loc[:,['actual_reward', 'symbol']])
     
