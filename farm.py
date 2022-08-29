@@ -7,6 +7,7 @@ import tqdm
 import pathos
 from decimal import Decimal
 from trongrid import getBlockNumByTimeStamp
+from sqlalchemy import create_engine
 
 
 def get_next_assign_frozen_reward(assign_json, week = 4):
@@ -235,7 +236,28 @@ def allaccounttoken(dir):
     total = allaccounttoken.groupby(['account', 'farm_token_type']).sum('reward')
     return total
 
+
+def diff_data_base(db_farm, db_report, has_borrow = True):
+    mysql_cnn = "mysql+pymysql://root:sun-net123@localhost:3306/"
+    engine_farm = create_engine(mysql_cnn+db_farm)
+    engine_report = create_engine(mysql_cnn+db_report)
+    token_status_farm = pd.read_sql("select symbol,address,total_balance,block_number,farm_index,farm_speed,`type`,start_time,end_time,status,`farm_token_type`,`decimal` from token_status order by address,farm_token_type,start_time,end_time", engine_farm, coerce_float=False).set_index(["address","farm_token_type","start_time","end_time"])
+    token_status_report = pd.read_sql("select symbol,address,total_balance,block_number,farm_index,farm_speed,`type`,start_time,end_time,status,`farm_token_type`,`decimal` from token_status order by address,farm_token_type,start_time,end_time", engine_report, coerce_float=False).set_index(["address","farm_token_type","start_time","end_time"])
+    account_status_farm = pd.read_sql(f"select address,token_address,balance,farm_index,block_number,accrued,`type`,`farm_token_type`{',borrow' if has_borrow else ''} from account_status order by address,token_address,farm_token_type", engine_farm, coerce_float=False).set_index(["address","token_address","farm_token_type"])
+    account_status_report = pd.read_sql(f"select address,token_address,balance,farm_index,block_number,accrued,`type`,`farm_token_type`{',borrow' if has_borrow else ''} from account_status order by address,token_address,farm_token_type", engine_report, coerce_float=False).set_index(["address","token_address","farm_token_type"])
+    if not token_status_farm.equals(token_status_report) or not account_status_farm.equals(account_status_report):
+        account_status_farm = account_status_farm.query("token_address != 'TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS'")
+        account_status_report = account_status_report.query("token_address != 'TX7kybeP6UwTBRHLNPYmswFESHfyjm9bAS'")
+        account_status_farm['accrued'] = account_status_farm['accrued'].astype(float)
+        account_status_report['accrued'] = account_status_report['accrued'].astype(float)
+        sub_accrued = account_status_farm['accrued'].sub(account_status_report['accrued']).abs()
+        sub_accrued.groupby("farm_token_type").max()
+        sub_accrued.groupby("farm_token_type").sum()
+
+
+
 if __name__ == '__main__':
-    all_token = alltoken("/Users/xiang/Documents/suniov2/old_v2Reward_20220805/prodReward_0805")
-    print(all_token.loc[:,['actual_reward', 'symbol']])
+    db_farm = "farm_sun_v2_alldump-20220819"
+    db_report = "farm_sun_report_v2_alldump-20220819"
+    print(diff_data_base(db_farm, db_report))
     
