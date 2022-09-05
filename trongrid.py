@@ -1,24 +1,38 @@
 import requests
 import json
 
+nile = 'https://api.nileex.io'
+trongrid = 'https://api.trongrid.io'
 
-def getBlockByNum(block_num:int):
+def getBlockByNum(block_num:int, host="mainnet"):
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
     params = {'num': block_num}
-    ret = requests.post(f"https://api.trongrid.io/walletsolidity/getblockbynum", data=json.dumps(params)).json()
+    ret = requests.post(domain + "/walletsolidity/getblockbynum", data=json.dumps(params)).json()
     return ret if 'block_header' in ret else None
 
 
-def getNowBlock():
-    ret = requests.post(f"https://api.trongrid.io/walletsolidity/getnowblock").json()
+def getNowBlock(host="mainnet"):
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
+    ret = requests.post(domain + "/walletsolidity/getnowblock").json()
     return ret if 'block_header' in ret else None
 
 
-def getBlockByLimitNext(start_num, end_num):
+def getBlockByLimitNext(start_num, end_num, host="mainnet"):
     """批量获取块，包含startNum，不包含endNum"""
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
     if start_num > end_num:
         start_num, end_num = end_num, start_num
     params = {"startNum": start_num, "endNum": end_num}
-    ret = requests.post(f"https://api.trongrid.io/walletsolidity/getblockbylimitnext", data=json.dumps(params)).json()
+    ret = requests.post(domain + "/walletsolidity/getblockbylimitnext", data=json.dumps(params)).json()
     return ret if 'block' in ret['block'] else []
 
 
@@ -31,16 +45,16 @@ def calBlockNumByTime(timestamp, ref_block_num, ref_timestamp):
     return (timestamp - ref_timestamp) // 3000 + ref_block_num
 
 
-def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None):
+def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None, host="mainnet"):
     """
     获取大于等于timeStamp的第一个块的块高
     timestamp是毫秒级时间戳
     """
     # 获取第一个参考块
     if ref_block_num is None or ref_timestamp is None:
-        block = getNowBlock()
+        block = getNowBlock(host)
         if block is None:
-            block = getBlockByNum(31183538)
+            block = getBlockByNum(31183538, host)
             if block is None:
                 return None
         ref_block_num, ref_timestamp = getBlockNumAndTimeStamp(block)
@@ -49,23 +63,23 @@ def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None
     # 从参考块开始查找，直到参考块高与预计块高相差10个以内
     while abs(ref_timestamp - timestamp) >= 30000:
         # 缩短要查找的块的范围直到10个块以内，以防出现连续丢块导致死循环
-        find = getBlockByNum(calBlockNumByTime(timestamp, ref_block_num, ref_timestamp))
+        find = getBlockByNum(calBlockNumByTime(timestamp, ref_block_num, ref_timestamp), host)
         jump = 0
         while find is None:
             jump -= 1
-            find = getBlockByNum(calBlockNumByTime(timestamp, ref_block_num, ref_timestamp) + jump)
+            find = getBlockByNum(calBlockNumByTime(timestamp, ref_block_num, ref_timestamp) + jump, host)
         ref_block_num, ref_timestamp = getBlockNumAndTimeStamp(find)
 
     # 一次性获取参考块到预计块高的所有块
     block_range = [] # 从小到大排列的块序列
     if ref_timestamp < timestamp:
         # 获取 [ref, 预估的块高+1] 的所有块
-        blocks = getBlockByLimitNext(ref_block_num + 1, calBlockNumByTime(timestamp, ref_block_num, ref_timestamp) + 2)
+        blocks = getBlockByLimitNext(ref_block_num + 1, calBlockNumByTime(timestamp, ref_block_num, ref_timestamp) + 2, host)
         block_range = [getBlockNumAndTimeStamp(block) for block in blocks]
         block_range.insert(0, (ref_block_num, ref_timestamp)) # ref插入到列表开头
     elif ref_timestamp > timestamp:
         # 获取 [预估的块高-1, ref] 的所有块
-        block_range = getBlockByLimitNext(calBlockNumByTime(timestamp, ref_block_num, ref_timestamp) - 1, ref_block_num)
+        block_range = getBlockByLimitNext(calBlockNumByTime(timestamp, ref_block_num, ref_timestamp) - 1, ref_block_num, host)
         block_range.append((ref_block_num, ref_timestamp)) # ref插入到列表末尾
     else :
         return ref_block_num
@@ -76,7 +90,7 @@ def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None
         smallest_block_num, smallest_timestamp = block_range[0]
         find_block = smallest_block_num - 1
         while True:
-            find = getBlockByNum(find_block)
+            find = getBlockByNum(find_block, host)
             find_block -= 1
             if find is not None:
                 find_block_num, find_timestamp = getBlockNumAndTimeStamp(find)
@@ -91,7 +105,7 @@ def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None
       largest_block_num, largest_timestamp = block_range[-1]
       find_block = largest_block_num + 1
       while True:
-        find = getBlockByNum(find_block)
+        find = getBlockByNum(find_block, host)
         find_block += 1
         if find is not None:
             find_block_num, find_timestamp = getBlockNumAndTimeStamp(find)
@@ -108,17 +122,44 @@ def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None
         return block_range[i][0]
 
 
-def getEventsByContractAndEvent(contract:str, event_name:str):
+def getEventsByContractAndEvent(contract:str, event_name:str, min_block_timestamp=None, max_block_timestamp=None, host="mainnet"):
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
     events = []
-    url = f"https://api.trongrid.io/v1/contracts/{contract}/events?limit=200"
+    url = domain + f"/v1/contracts/{contract}/events?limit=200"
     if event_name is not None:
         url = url + f"&event_name={event_name}"
+    if min_block_timestamp is not None:
+        url = url + f"&min_block_timestamp={min_block_timestamp}"
+    if max_block_timestamp is not None:
+        url = url + f"&max_block_timestamp={max_block_timestamp}"
+    retry = False
     while True:
         result = requests.get(url).json()
-        if 'data' in result:
+        if not result['success']:
+            print(url)
+            continue
+        if not retry and 'data' in result:
             events.extend(result['data'])
+        elif not retry:
+            print(url)
+            print(result)
+            continue
         if 'meta' in result and 'links' in result['meta'] and 'next' in result['meta']['links']:
             url = result['meta']['links']['next']
         else:
-            break
+            if not retry:
+                retry = True
+                continue
+            else:
+                retry = False
+                break
     return events
+
+
+
+if __name__ == '__main__':
+    print(getBlockNumByTimeStamp(1662059400000, host="nile"))
+    
