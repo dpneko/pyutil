@@ -55,10 +55,9 @@ def stats_sun_swap_v2_vol(start=None, end=None):
         df = pd.read_csv(csv_path, index_col="id")
     else:
         if start is not None and end is not None:
-            # sql = f"select a.*, b.token0_address, b.token1_address from transaction_swap as a left join pair as b on a.pair_address = b.pair_address where block_create_time BETWEEN FROM_UNIXTIME({start_ts}) AND FROM_UNIXTIME({end_ts})"
-            sql = f"select a.*, b.token0_address, b.token1_address from (select * from transaction_swap where block_create_time BETWEEN FROM_UNIXTIME({start_ts}) AND FROM_UNIXTIME({end_ts})) as a left join pair as b on a.pair_address = b.pair_address"
+            sql = f"select a.*, b.token0_address, b.token1_address, c.symbol as token0_symbol, d.symbol as token1_symbol from (select * from transaction_swap where block_create_time BETWEEN FROM_UNIXTIME({start_ts}) AND FROM_UNIXTIME({end_ts})) as a left join pair as b on a.pair_address = b.pair_address left join token as c on b.token0_address = c.token_address left join token as d on b.token1_address = d.token_address"
         else:
-            sql = "select a.*, b.token0_address, b.token1_address from transaction_swap as a left join pair as b on a.pair_address = b.pair_address"
+            sql = "select a.*, b.token0_address, b.token1_address, c.symbol as token0_symbol, d.symbol as token1_symbol from transaction_swap as a left join pair as b on a.pair_address = b.pair_address left join token as c on b.token0_address = c.token_address left join token as d on b.token1_address = d.token_address"
         _t1 = time.time()
         df = pd.read_sql_query(sql, "mysql+pymysql://v2_ro:etVvjMKaKTpCySCvtPVcU33#6@3.139.203.45:3306/defiswap-v2", index_col="id", dtype={"amount0In":float, "amount1In":float, "amount0Out":float, "amount1Out": float, "amount_usd": float})
         # print(time.time() - _t1)
@@ -87,6 +86,8 @@ def stats_sun_swap_v2_vol(start=None, end=None):
     df_groupby = df.groupby("txn_hash").agg(['first', 'last'])
     in_token = df_groupby[('token0_address', 'first')].where(df_groupby[("amount0In", "first")]>0, other=df_groupby[('token1_address', 'first')])
     out_token = df_groupby[('token1_address', 'last')].where(df_groupby[("amount1Out", "last")]>0, other=df_groupby[('token0_address', 'last')])
+    in_token_symbol = df_groupby[('token0_symbol', 'first')].where(df_groupby[("amount0In", "first")]>0, other=df_groupby[('token1_symbol', 'first')])
+    out_token_symbol = df_groupby[('token1_symbol', 'last')].where(df_groupby[("amount1Out", "last")]>0, other=df_groupby[('token0_symbol', 'last')])
     in_amount = df_groupby[('amount0In', 'first')] + df_groupby[('amount1In', 'first')]
     out_amount = df_groupby[('amount0Out', 'last')] + df_groupby[('amount1Out', 'last')]
     amount_usd = df_groupby[('amount_usd', 'first')].where(df_groupby[('amount_usd', 'first')]>0, other=df_groupby[('amount_usd', 'last')])
@@ -95,6 +96,8 @@ def stats_sun_swap_v2_vol(start=None, end=None):
         'from_address': df_groupby[('from_address', 'first')],
         'in_token': in_token,
         'out_token': out_token,
+        'in_token_symbol': in_token_symbol,
+        'out_token_symbol': out_token_symbol,
         'in_amount': in_amount,
         'out_amount': out_amount,
         'amount_usd': amount_usd
@@ -111,5 +114,5 @@ if __name__ == '__main__':
     sum_sunio.to_csv("sunio币对交易额.csv", header=None)
 
     stats_swapv2 = stats_sun_swap_v2_vol(start, end)
-    sum_swapv2 = stats_swapv2.groupby(['in_token', 'out_token']).sum()['amount_usd'].sort_values(ascending=False)
+    sum_swapv2 = stats_swapv2.groupby(['in_token', 'out_token', 'in_token_symbol', 'out_token_symbol']).sum()['amount_usd'].sort_values(ascending=False)
     sum_swapv2.to_csv("swapv2交易额.csv", header=None)
