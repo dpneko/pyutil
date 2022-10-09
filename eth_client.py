@@ -5,7 +5,7 @@ import tqdm
 import os
 from web3 import Web3, HTTPProvider
 
-bsc = "https://snowy-boldest-asphalt.bsc.discover.quiknode.pro/560ab43510e2c564d4d363d1ce6b59944b3cb56c/"
+bsc = "https://skilled-spring-patron.bsc.discover.quiknode.pro/3abc1b482d5250918ec09ea802ad40eed42c165f/"
 eth = "https://mainnet.infura.io/v3/5f7b1e325e3d46cb8867a7b496365dea"
 
 def get_logs(address, topics, fromBlock, toBlock):
