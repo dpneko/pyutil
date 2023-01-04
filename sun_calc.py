@@ -103,80 +103,82 @@ def back_through(current_total_balance: int, current_ts: int, start_ts: int,
 def calculate(total_balance: int, reward_per_token_paid: int, speed: int,
               last_ts: int, end_ts: int,
               initial_state: dict, balance_changes: list, speed_changes: list):
-    tb = total_balance
+    total_balance = total_balance
     # 放大 10 ** 18
-    rptp = reward_per_token_paid
-    lt = last_ts
+    reward_per_token_paid = reward_per_token_paid
+    last_ts = last_ts
     # 为了避免误差, 在计算里将 speed 放大 10 ** 18 倍.
-    sp = speed * 10 ** 18
+    speed = speed * 10 ** 18
     state = initial_state
-    bc = balance_changes
-    sc = speed_changes
+    balance_changes = balance_changes
+    speed_changes = speed_changes
 
-    l_bc = len(bc)
-    l_sc = len(sc)
-    i_bc = 0
-    i_sc = 0
+    len_balance_changes = len(balance_changes)
+    len_speed_changes = len(speed_changes)
+    i_balance_changes = 0
+    i_speed_changes = 0
 
-    while i_bc < l_bc or i_sc < l_sc:
+    while i_balance_changes < len_balance_changes or i_speed_changes < len_speed_changes:
         # 只有 bc 或 bc 时间更早
-        if i_sc >= l_sc or (i_bc < l_bc and bc[i_bc][0] <= sc[i_sc][0]):
-            change = bc[i_bc]
+        if i_speed_changes >= len_speed_changes or (i_balance_changes < len_balance_changes and balance_changes[i_balance_changes][0] <= speed_changes[i_speed_changes][0]):
+            change = balance_changes[i_balance_changes]
             if change[0] > end_ts:
                 break
 
             user = change[1]
             if user not in state:
-                state[user] = [0, 0, lt, rptp]
+                state[user] = [0, 0, last_ts, reward_per_token_paid]
 
-            if change[0] < lt:
+            if change[0] < last_ts:
                 # 更新余额数据.
                 state[user][0] = change[2]
-                tb = change[3]
+                total_balance = change[3]
 
             # 需要更新 rptp 和 lt
-            if change[0] >= lt:
-                rptp += sp * (change[0] - lt) // tb
-                lt = change[0]
+            if change[0] >= last_ts:
+                if total_balance != 0:
+                    reward_per_token_paid += speed * (change[0] - last_ts) // total_balance
+                last_ts = change[0]
 
                 # update user info
-                state[user][1] += state[user][0] * (rptp - state[user][3])
-                state[user][3] = rptp
-                state[user][2] = lt
+                state[user][1] += state[user][0] * (reward_per_token_paid - state[user][3])
+                state[user][3] = reward_per_token_paid
+                state[user][2] = last_ts
 
                 # update user balance
                 state[user][0] = change[2]
 
                 # update total balance
-                tb = change[3]
-            i_bc += 1
+                total_balance = change[3]
+            i_balance_changes += 1
 
         # 只有 sc 或 sc 时间更早
         else:
-            change = sc[i_sc]
+            change = speed_changes[i_speed_changes]
             if change[0] > end_ts:
                 break
             # 需要更新 rptp 和 lt 和 sp
-            if change[0] < lt:
-                sp = change[1] * 10 ** 18
-            if change[0] >= lt:
-                rptp += sp * (change[0] - lt) // tb
-                lt = change[0]
-                sp = change[1] * 10 ** 18
+            if change[0] < last_ts:
+                speed = change[1] * 10 ** 18
+            if change[0] >= last_ts:
+                if total_balance != 0:
+                    reward_per_token_paid += speed * (change[0] - last_ts) // total_balance
+                last_ts = change[0]
+                speed = change[1] * 10 ** 18
 
-            i_sc += 1
+            i_speed_changes += 1
 
-    if lt < end_ts:
-        if tb > 0:
-            rptp += sp * (end_ts - lt) // tb
-        lt = end_ts
+    if last_ts < end_ts:
+        if total_balance > 0:
+            reward_per_token_paid += speed * (end_ts - last_ts) // total_balance
+        last_ts = end_ts
 
     rewards = []
     for user in state.keys():
-        if state[user][3] < rptp:
-            state[user][1] += state[user][0] * (rptp - state[user][3])
-            state[user][2] = lt
-            state[user][3] = rptp
+        if state[user][3] < reward_per_token_paid:
+            state[user][1] += state[user][0] * (reward_per_token_paid - state[user][3])
+            state[user][2] = last_ts
+            state[user][3] = reward_per_token_paid
 
         if state[user][1] > 0:
             rewards.append([user, state[user][1] // 10 ** 18])
@@ -254,7 +256,7 @@ def visit_pool_for_period(conn: pymysql.Connection, pool: str, start: int, end: 
 
 
 def run():
-    db = pymysql.connect(host="127.0.0.1", database="sun_pool", user="root", password="sun-net123")
+    db = pymysql.connect(host="127.0.0.1", database="sun_pool", user="root", password="123456")
     results = dict()
     results['project'] = dict()
     results['gov'] = dict()
@@ -276,8 +278,33 @@ def run():
     # start = 1666886400 # TODO: 开始时间: 2022-10-28 00:00:00
     # end = 1667491200 # TODO: 结束时间: 2022-11-04 00:00:00
 
-    start = 1667491200 # TODO: 开始时间: 2022-11-04 00:00:00
-    end = 1668096000 # TODO: 结束时间: 2022-11-11 00:00:00
+    # start = 1667491200 # TODO: 开始时间: 2022-11-04 00:00:00
+    # end = 1668096000 # TODO: 结束时间: 2022-11-11 00:00:00
+
+    # start = 1668096000 # TODO: 开始时间: 2022-11-11 00:00:00
+    # end = 1668700800 # TODO: 结束时间: 2022-11-18 00:00:00
+
+    # start = 1668700800 # TODO: 开始时间: 2022-11-18 00:00:00
+    # end = 1669305600 # TODO: 结束时间: 2022-11-25 00:00:00
+
+    # start = 1669305600 # TODO: 开始时间: 2022-11-25 00:00:00
+    # end = 1669910400 # TODO: 结束时间: 2022-12-02 00:00:00
+
+    # start = 1669910400 # TODO: 开始时间: 2022-12-02 00:00:00
+    # end = 1670515200 # TODO: 结束时间: 2022-12-09 00:00:00
+
+    # start = 1670515200 # TODO: 开始时间: 2022-12-09 00:00:00
+    # end = 1671120000 # TODO: 结束时间: 2022-12-16 00:00:00
+
+    # start = 1671120000 # TODO: 开始时间: 2022-12-16 00:00:00
+    # end = 1671724800 # TODO: 结束时间: 2022-12-23 00:00:00
+
+
+    # start = 1671724800 # TODO: 开始时间: 2022-12-23 00:00:00
+    # end = 1672329600 # TODO: 结束时间: 2022-12-30 00:00:00
+
+    start = 0 # TODO: 开始时间: 0
+    end = 1672329600 # TODO: 结束时间: 2022-12-30 00:00:00
 
     justin_addresses = ("TCy2gn2skTzzRizqqKJRRq25NEHKcTz5cD", "TPyjyZfsYaXStgz2NmAraF1uZcMtkgNan5",
                         "TDqMwZVTSPLTCZQC55Db3J69eXY7HLCmfs", "TFsuFNs5vyjJ8iKUT5uvJUhjnx5VjFdWPy",
@@ -323,8 +350,8 @@ def run():
     print(json.dumps(gov_percentage))
     df_project = pd.DataFrame(project_percentage, dtype=float, index=['justin', 'total', 'percentage']).T
     df_gov = pd.DataFrame(gov_percentage, dtype=float, index=['justin', 'total', 'percentage']).T
-    df_project.to_csv(f"项目方挖矿_{start}_{end}_(2).csv", float_format="%.0f")
-    df_gov.to_csv(f"治理挖矿_{start}_{end}_(2).csv", float_format="%.4f")
+    df_project.to_csv(f"项目方挖矿_{start}_{end}.csv", float_format="%.0f")
+    df_gov.to_csv(f"治理挖矿_{start}_{end}.csv", float_format="%.0f")
 
 
 def generate_sql(file:str):
