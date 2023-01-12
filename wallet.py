@@ -50,8 +50,8 @@ def getcontractinfo(contract_address:str, host="mainnet"):
 
 def balanceOf(token, user):
     # 参数是base58check encode
-    user = Base58(user).decodeWithPrefix()
-    ret = triggerconstantcontract(token, "balanceOf(address)", "0000000000000000000000"+user)
+    user = Base58(user).decode()
+    ret = triggerconstantcontract(token, "balanceOf(address)", "000000000000000000000000"+user)
     return int(ret, base=16)
 
 
@@ -74,6 +74,11 @@ def locked(user, vesun):
 
 def decimals(token):
     ret = triggerconstantcontract(token, "decimals()", "")
+    return int(ret, base=16)
+
+
+def totalSupply(token):
+    ret = triggerconstantcontract(token, "totalSupply()", "")
     return int(ret, base=16)
 
 
