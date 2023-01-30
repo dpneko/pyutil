@@ -256,55 +256,14 @@ def visit_pool_for_period(conn: pymysql.Connection, pool: str, start: int, end: 
 
 
 def run():
-    db = pymysql.connect(host="127.0.0.1", database="sun_pool", user="root", password="123456")
+    db = pymysql.connect(host="47.252.23.81", database="sun_pool_stats", user="root", password="admin")
     results = dict()
     results['project'] = dict()
     results['gov'] = dict()
 
-    # # TODO: 开始时间: 2022-10-21 00:00:00
-    # start = 1666281600
-
-    # # TODO: 结束时间: 2022-10-28 00:00:00
-    # end = 1666886400
-
-    # start = 1664542800 # TODO: 开始时间: 2022-09-30 21:00:00
-    # end = 1666540800 # TODO: 结束时间: 2022-10-24 00:00:00
-
-
-    # start = 1665676800 # TODO: 开始时间: 2022-10-14 00:00:00
-    # end = 1666281600 # TODO: 结束时间: 2022-10-21 00:00:00
-
-
-    # start = 1666886400 # TODO: 开始时间: 2022-10-28 00:00:00
-    # end = 1667491200 # TODO: 结束时间: 2022-11-04 00:00:00
-
-    # start = 1667491200 # TODO: 开始时间: 2022-11-04 00:00:00
-    # end = 1668096000 # TODO: 结束时间: 2022-11-11 00:00:00
-
-    # start = 1668096000 # TODO: 开始时间: 2022-11-11 00:00:00
-    # end = 1668700800 # TODO: 结束时间: 2022-11-18 00:00:00
-
-    # start = 1668700800 # TODO: 开始时间: 2022-11-18 00:00:00
-    # end = 1669305600 # TODO: 结束时间: 2022-11-25 00:00:00
-
-    # start = 1669305600 # TODO: 开始时间: 2022-11-25 00:00:00
-    # end = 1669910400 # TODO: 结束时间: 2022-12-02 00:00:00
-
-    # start = 1669910400 # TODO: 开始时间: 2022-12-02 00:00:00
-    # end = 1670515200 # TODO: 结束时间: 2022-12-09 00:00:00
-
-    # start = 1670515200 # TODO: 开始时间: 2022-12-09 00:00:00
-    # end = 1671120000 # TODO: 结束时间: 2022-12-16 00:00:00
-
-    # start = 1671120000 # TODO: 开始时间: 2022-12-16 00:00:00
-    # end = 1671724800 # TODO: 结束时间: 2022-12-23 00:00:00
-
-
-    # start = 1671724800 # TODO: 开始时间: 2022-12-23 00:00:00
-    # end = 1672329600 # TODO: 结束时间: 2022-12-30 00:00:00
-
-    start = 0 # TODO: 开始时间: 0
-    end = 1672329600 # TODO: 结束时间: 2022-12-30 00:00:00
+    # 北京时间周五凌晨0点
+    start = 1674144000 # TODO: 开始时间: 2023-01-20 00:00:00
+    end = 1674748800 # TODO: 结束时间: 2023-01-27 00:00:00
 
     justin_addresses = ("TCy2gn2skTzzRizqqKJRRq25NEHKcTz5cD", "TPyjyZfsYaXStgz2NmAraF1uZcMtkgNan5",
                         "TDqMwZVTSPLTCZQC55Db3J69eXY7HLCmfs", "TFsuFNs5vyjJ8iKUT5uvJUhjnx5VjFdWPy",
