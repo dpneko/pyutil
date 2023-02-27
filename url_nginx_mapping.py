@@ -152,7 +152,7 @@ urls = ["/justlend/markets/dashboard",
 "/error",
 "/**/favicon.ico"]
 
-def url_nginx_mapping(urls, ngxins):
+def url_nginx_mapping(urls, nginxs):
     nginxs_keys = sorted(nginxs, key=lambda s : s.count('/') * 100 + len(s))
     url_mapping = {}
     for url in urls:
@@ -160,4 +160,6 @@ def url_nginx_mapping(urls, ngxins):
             if url.startswith(nginx):
                 url_mapping[url] = nginx
     for url, nginx in url_mapping.items():
-        print(f"{url}\t{nginxs[nginx]}")
+        print(f"\"{url}\",\"{nginxs[nginx]}\",\"{nginx}\"")
+
+url_nginx_mapping(urls, nginxs)
