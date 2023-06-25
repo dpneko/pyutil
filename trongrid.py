@@ -1,5 +1,7 @@
 import requests
 import json
+import subprocess
+import os
 
 nile = 'https://api.nileex.io'
 trongrid = 'https://api.trongrid.io'
@@ -122,7 +124,7 @@ def getBlockNumByTimeStamp(timestamp:int, ref_block_num=None, ref_timestamp=None
         return block_range[i][0]
 
 
-def getEventsByContractAndEvent(contract:str, event_name:str, min_block_timestamp=None, max_block_timestamp=None, host="mainnet"):
+def getEventsByContractAndEvent(contract:str, event_name:str=None, min_block_timestamp=None, max_block_timestamp=None, host="mainnet"):
     if host == "nile":
         domain = nile
     else:
@@ -159,7 +161,122 @@ def getEventsByContractAndEvent(contract:str, event_name:str, min_block_timestam
     return events
 
 
+def gettransactionbyid(txn_id):
+    url = f"https://api.trongrid.io/wallet/gettransactionbyid"
+    payload = {"value": txn_id}
+    result = requests.post(url, json=payload)
+    if not result.ok:
+        print(url)
+        print(result.text)
+        return None
+    return result.json()
+
+
+def gettransactioninfobyid(txn_id):
+    url = f"https://api.trongrid.io/wallet/gettransactioninfobyid"
+    payload = {"value": txn_id}
+    result = requests.post(url, json=payload)
+    if not result.ok:
+        print(url)
+        print(result.text)
+        return None
+    return result.json()
+
+
+def getTransactionInfosByContract(contract:str, min_block_timestamp=None, max_block_timestamp=None, host="mainnet"):
+    if host == "nile":
+        domain = nile
+    else:
+        domain = trongrid
+    events = []
+    url = domain + f"/v1/contracts/{contract}/transactions?limit=50"
+    if min_block_timestamp is not None:
+        url = url + f"&min_block_timestamp={min_block_timestamp}"
+    if max_block_timestamp is not None:
+        url = url + f"&max_block_timestamp={max_block_timestamp}"
+    retry = False
+    while True:
+        result = requests.get(url).json()
+        if not result['success']:
+            print(url)
+            continue
+        if not retry and 'data' in result:
+            events.extend(result['data'])
+        elif not retry:
+            print(url)
+            print(result)
+            continue
+        if 'meta' in result and 'links' in result['meta'] and 'next' in result['meta']['links']:
+            url = result['meta']['links']['next']
+        else:
+            if not retry:
+                retry = True
+                continue
+            else:
+                retry = False
+                break
+    return events
+
+
+def getCallDataFromTransactionInfo(transaction_info:dict):
+    if 'raw_data' not in transaction_info:
+        return None
+    raw_data = transaction_info['raw_data']
+    if 'contract' not in raw_data:
+        return None
+    contract = raw_data['contract']
+    if not isinstance(contract, list):
+        return None
+    for c in contract:
+        if 'type' not in c or c['type'] != 'TriggerSmartContract':
+            continue
+        if 'parameter' not in c:
+            continue
+        parameter = c['parameter']
+        if 'value' not in parameter:
+            continue
+        value = parameter['value']
+        if 'data' not in value:
+            continue
+        return value['data']
+    return None
+
+
+def decodeTransactionCallData(call_data_dict:dict):
+    for txn_id, call_data in call_data_dict.items():
+        if len(call_data.removeprefix("0x")) == 8:
+            exitcode, output = subprocess.getstatusoutput("cast 4byte " + call_data)
+        else:
+            exitcode, output = subprocess.getstatusoutput("cast 4byte-decode " + call_data)
+        if exitcode != 0:
+            print(txn_id)
+            print(call_data)
+            print(output)
+            continue
+        lines = output.split(os.linesep)
+        if "\"" in lines[0]:    
+            method = lines[0].split("\"")[1]
+        else:
+            method = lines[0]
+        params = lines[1:]
+        call_data_dict[txn_id] = (method, params)
+    return call_data_dict
+
+
+def getTransactionsCallDataByContract(contract:str, min_block_timestamp=None, max_block_timestamp=None, host="mainnet"):
+    transaction_info = getTransactionInfosByContract(contract, min_block_timestamp, max_block_timestamp, host)
+    call_data_dict = {}
+    for t in transaction_info:
+        txn_id = t['txID']
+        call_data = getCallDataFromTransactionInfo(t)
+        if call_data is None:
+            continue
+        call_data_dict[txn_id] = call_data
+    return decodeTransactionCallData(call_data_dict)
+
 
 if __name__ == '__main__':
-    print(getBlockNumByTimeStamp(1662059400000, host="nile"))
-    
+    # print(json.dumps(gettransactionbyid("308d1ab62bc7ed2c403e81918741c827a4d9f8e6c89075733c76357281a6bd9c"), indent=6))
+    # print(json.dumps(getEventsByContractAndEvent("TP2JD7LfzXZU1L61ThHmLGi1n6sUJuUtK8"), indent=6))
+    with open("output/transactions.json", "w") as f:
+        json.dump(getTransactionsCallDataByContract("TP2JD7LfzXZU1L61ThHmLGi1n6sUJuUtK8"), f, indent=6)

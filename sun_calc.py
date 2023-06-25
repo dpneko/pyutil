@@ -2,6 +2,7 @@
 import pymysql
 import json
 import pandas as pd
+import time
 
 
 def all_pools(conn: pymysql.Connection):
@@ -261,9 +262,11 @@ def run():
     results['project'] = dict()
     results['gov'] = dict()
 
-    # 北京时间周五凌晨0点
-    start = 1674144000 # TODO: 开始时间: 2023-01-20 00:00:00
-    end = 1674748800 # TODO: 结束时间: 2023-01-27 00:00:00
+    # 北京时间周六凌晨0点
+    starttime = "2023-06-10 00:00:00"
+    endtime = "2023-06-17 00:00:00"
+    start = int(time.mktime(time.strptime(starttime, '%Y-%m-%d %H:%M:%S')))
+    end = int(time.mktime(time.strptime(endtime, '%Y-%m-%d %H:%M:%S'))) 
 
     justin_addresses = ("TCy2gn2skTzzRizqqKJRRq25NEHKcTz5cD", "TPyjyZfsYaXStgz2NmAraF1uZcMtkgNan5",
                         "TDqMwZVTSPLTCZQC55Db3J69eXY7HLCmfs", "TFsuFNs5vyjJ8iKUT5uvJUhjnx5VjFdWPy",
@@ -292,7 +295,7 @@ def run():
             if address in justin_addresses:
                 justin += reward
 
-        project_percentage[pool] = [justin, total, justin / total if total > 0 else 0.0]
+        project_percentage[pool] = [total, justin, justin / total if total > 0 else 0.0]
 
         gov_justin = 0
         gov_total = 0
@@ -301,16 +304,17 @@ def run():
             if address in justin_addresses:
                 gov_justin += reward
 
-        gov_percentage[pool] = [gov_justin, gov_total, gov_justin / gov_total if gov_total > 0 else 0.0]
+        gov_percentage[pool] = [gov_total, gov_justin, gov_justin / gov_total if gov_total > 0 else 0.0]
 
     # print(results)
 
-    print(json.dumps(project_percentage))
-    print(json.dumps(gov_percentage))
-    df_project = pd.DataFrame(project_percentage, dtype=float, index=['justin', 'total', 'percentage']).T
-    df_gov = pd.DataFrame(gov_percentage, dtype=float, index=['justin', 'total', 'percentage']).T
-    df_project.to_csv(f"项目方挖矿_{start}_{end}.csv", float_format="%.0f")
-    df_gov.to_csv(f"治理挖矿_{start}_{end}.csv", float_format="%.0f")
+    # print(json.dumps(project_percentage))
+    # print(json.dumps(gov_percentage))
+    df_project = pd.DataFrame(project_percentage, dtype=float, index=['total', 'justin', 'percentage']).T
+    df_gov = pd.DataFrame(gov_percentage, dtype=float, index=['total', 'justin', 'percentage']).T
+    df_project.to_csv(f"挖矿/项目方挖矿_{start}_{end}.csv", float_format="%.0f")
+    df_gov.to_csv(f"挖矿/治理挖矿_{start}_{end}.csv", float_format="%.0f")
+    print(f"文件保存到 挖矿/项目方挖矿_{start}_{end}.csv 和 挖矿/治理挖矿_{start}_{end}.csv")
 
 
 def generate_sql(file:str):
