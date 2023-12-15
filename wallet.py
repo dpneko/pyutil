@@ -48,10 +48,10 @@ def getcontractinfo(contract_address:str, host="mainnet"):
     return requests.post(domain + "/wallet/getcontractinfo", json=params, headers={"Content-Type":"application/json"}).json()
 
 
-def balanceOf(token, user):
+def balanceOf(token, user, host="mainnet"):
     # 参数是base58check encode
     user = Base58(user).decode()
-    ret = triggerconstantcontract(token, "balanceOf(address)", "000000000000000000000000"+user)
+    ret = triggerconstantcontract(token, "balanceOf(address)", "000000000000000000000000"+user, host=host)
     return int(ret, base=16)
 
 
@@ -72,8 +72,8 @@ def locked(user, vesun):
     return user, amount, end
 
 
-def decimals(token):
-    ret = triggerconstantcontract(token, "decimals()", "")
+def decimals(token, host="mainnet"):
+    ret = triggerconstantcontract(token, "decimals()", "", host=host)
     return int(ret, base=16)
 
 
@@ -83,4 +83,4 @@ def totalSupply(token):
 
 
 if __name__ == '__main__':
-    print(json.dumps(getcontractinfo("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")))
+    print(balanceOf("TGxdnZPV48CuhGwomLigBDxGzEWDQDUgXT", "TWTamjLC2a52pEy69abhLixDGNbskFsvR4", "nile") / 10**decimals("TGxdnZPV48CuhGwomLigBDxGzEWDQDUgXT", "nile"))
